@@ -1,7 +1,27 @@
-*.class
-*.pyc
-*.pyo
+# Burp Phishlet Generator .gitignore
+
+# Compiled Python artifacts and Jython build outputs
+
+\*.class
+\*.pyc
+\*.pyo
+
+# Jython standalone JARs
+
+jython-standalone-\*.jar
+
+# Burp Suite extension metadata
+
+\*.bmf
+\*.bapp
+
+# IDE / editor folders and files
+
 .vscode/
 .idea/
-.DS_Store
+\*.iml
+
+# OS-specific files
+
+.DS\_Store
 Thumbs.db
