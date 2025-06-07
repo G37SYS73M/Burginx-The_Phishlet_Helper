@@ -1,4 +1,4 @@
-# Burginx – Burp Phishlet Generator
+# Burginx – Burp Phishlet Generator __version__ = "1.0.0"
 
 A Burp Suite extension (Jython/Python 2.7) for quickly extracting login credentials, session cookies, and generating Evilginx-compatible Phishlet YAML.
 
