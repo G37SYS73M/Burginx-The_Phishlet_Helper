@@ -33,10 +33,14 @@ class MainPanel(JPanel):
         self.add(scroll, BorderLayout.CENTER)
 
     def on_extract(self, event):
-        triggers = [int(x.strip()) for x in self.trigger_input.getText().split(",")]
+        try:
+            triggers = [int(x.strip()) for x in self.trigger_input.getText().split(",")]
+        except:
+            self.log("Invalid trigger indices format")
+            return
         pattern = self.error_input.getText().strip()
         result = self.logic.extract(triggers, pattern)
-        self.log("Extracted: %s" % result)
+        self.log("Extracted: %s" % repr(result))
 
     def on_generate(self, event):
         chooser = JFileChooser()

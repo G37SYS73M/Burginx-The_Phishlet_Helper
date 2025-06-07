@@ -1,4 +1,4 @@
-# Python Burp Extension: Phishlet Generator
+# Python Burp Extension: Phishlet Generator (Python 2.7 compatible)
 
 This Burp extension in Python (Jython) extracts session cookies, authorization tokens, and POST data from Burp HTTP history using regex-based rules, and then generates a Phishlet YAML file suitable for Evilginx3/Evilginx2.
 
