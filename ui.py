@@ -34,7 +34,7 @@ class MainPanel(JPanel):
 
     def on_extract(self, event):
         try:
-            triggers = [int(x.strip()) for x in self.trigger_input.getText().split(",")]
+            triggers = [int(x.strip()) for x in self.trigger_input.getText().split(",") if x.strip()]
         except:
             self.log("Invalid trigger indices format")
             return
