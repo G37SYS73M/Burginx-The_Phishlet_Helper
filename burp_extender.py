@@ -8,7 +8,7 @@ class BurpExtender(IBurpExtender, ITab, IContextMenuFactory):
     def registerExtenderCallbacks(self, callbacks):
         self.callbacks = callbacks
         self.helpers = callbacks.getHelpers()
-        callbacks.setExtensionName("Phishlet Generator")
+        callbacks.setExtensionName("Burginx v1.0")
         SwingUtilities.invokeLater(lambda: self._initialize_ui())
         callbacks.registerContextMenuFactory(self)
 
@@ -17,14 +17,14 @@ class BurpExtender(IBurpExtender, ITab, IContextMenuFactory):
         self.callbacks.addSuiteTab(self)
 
     def getTabCaption(self):
-        return "Phishlet Gen"
+        return "Burginx v1.0"
 
     def getUiComponent(self):
         return self.main_panel
 
     def createMenuItems(self, invocation):
         menu = ArrayList()
-        item = JMenuItem("Send to Phishlet Gen",
+        item = JMenuItem("Send to Burginx",
                          actionPerformed=lambda e: self._send_to_ui(invocation))
         menu.add(item)
         return menu
