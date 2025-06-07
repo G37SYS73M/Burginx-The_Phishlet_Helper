@@ -1,93 +1,129 @@
 from burp import IMessageEditorController
 from javax.swing import (
     JPanel, JList, DefaultListModel, JScrollPane, JTextArea,
-    JSplitPane, JLabel, JButton, BoxLayout, ListSelectionModel
+    JSplitPane, JLabel, JButton, BoxLayout, ListSelectionModel,
+    JRadioButton, ButtonGroup, JTabbedPane, JFileChooser
 )
-from java.awt import BorderLayout, Dimension
+from java.awt import BorderLayout, Dimension, FlowLayout
+import logic
 
-class MainPanel(JPanel):
+class MainPanel(JTabbedPane):
     def __init__(self, callbacks):
-        super(MainPanel, self).__init__(BorderLayout())
+        super(MainPanel, self).__init__()
         self.callbacks = callbacks
         self.helpers = callbacks.getHelpers()
-
-        # Internal storage of IMessageInfo objects
         self.messages = []
-
-        # Left: list of requests
+        self.creds_list = []
+        self.cookies_list = []
         self.list_model = DefaultListModel()
+
+        self.extract_panel = self.build_extract_panel()
+        self.yaml_panel = self.build_yaml_panel()
+        self.addTab("Extract", self.extract_panel)
+        self.addTab("Generate/Edit YAML", self.yaml_panel)
+
+    def add_request(self, msg):
+        idx = len(self.messages)
+        self.messages.append(msg)
+        svc = msg.getHttpService()
+        info = self.helpers.analyzeRequest(msg)
+        disp = "%d: %s %s" % (idx, svc.getHost(), info.getUrl())
+        self.list_model.addElement(disp)
+
+    def build_extract_panel(self):
+        panel = JPanel(BorderLayout())
+        top = JPanel(FlowLayout(FlowLayout.LEFT))
+        clear = JButton("Clear Requests", actionPerformed=lambda e: self.clear_requests())
+        top.add(clear); panel.add(top, BorderLayout.NORTH)
+
         self.request_list = JList(self.list_model)
-        # Use ListSelectionModel for selection constants
         self.request_list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION)
         self.request_list.addListSelectionListener(lambda e: self.on_select_request())
+        list_scroll = JScrollPane(self.request_list)
 
-        # Middle: raw request and response viewers
-        self.request_view = JTextArea()
-        self.request_view.setEditable(False)
-        self.response_view = JTextArea()
-        self.response_view.setEditable(False)
+        ctrl = JPanel(FlowLayout(FlowLayout.LEFT))
+        self.radio_creds = JRadioButton("Creds")
+        self.radio_cookies = JRadioButton("Cookies")
+        grp = ButtonGroup(); grp.add(self.radio_creds); grp.add(self.radio_cookies)
+        ctrl.add(self.radio_creds); ctrl.add(self.radio_cookies)
+        get_btn = JButton("Get from Selection", actionPerformed=lambda e: self.on_extract_selection())
+        ctrl.add(get_btn)
 
-        # Bottom: placeholder for extraction controls
-        self.extract_panel = JPanel()
-        self.extract_panel.setLayout(BoxLayout(self.extract_panel, BoxLayout.Y_AXIS))
-        self.extract_panel.add(JLabel("Extraction Controls Coming Soon..."))
+        left = JPanel(BorderLayout())
+        left.add(list_scroll, BorderLayout.CENTER)
+        left.add(ctrl, BorderLayout.SOUTH)
 
-        # Assemble split panes
-        split_left = JScrollPane(self.request_list)
-        split_right = JSplitPane(JSplitPane.VERTICAL_SPLIT,
-                                 JScrollPane(self.request_view),
-                                 JScrollPane(self.response_view))
-        split_right.setResizeWeight(0.5)
+        self.request_view = JTextArea(); self.request_view.setEditable(False)
+        self.response_view = JTextArea(); self.response_view.setEditable(False)
+        viewer = JSplitPane(JSplitPane.VERTICAL_SPLIT, JScrollPane(self.request_view), JScrollPane(self.response_view))
+        viewer.setResizeWeight(0.5)
 
-        right_panel = JPanel(BorderLayout())
-        right_panel.add(split_right, BorderLayout.CENTER)
-        right_panel.add(self.extract_panel, BorderLayout.SOUTH)
+        post_panel = JPanel(); post_panel.setLayout(BoxLayout(post_panel, BoxLayout.Y_AXIS))
+        post_panel.add(JLabel("Extracted POST data"))
+        self.post_area = JTextArea(4, 30); self.post_area.setEditable(False)
+        post_panel.add(JScrollPane(self.post_area))
 
-        main_split = JSplitPane(JSplitPane.HORIZONTAL_SPLIT,
-                                split_left, right_panel)
-        main_split.setResizeWeight(0.3)
-        main_split.setPreferredSize(Dimension(900, 600))
+        token_panel = JPanel(); token_panel.setLayout(BoxLayout(token_panel, BoxLayout.Y_AXIS))
+        token_panel.add(JLabel("Extracted Session Tokens"))
+        self.token_area = JTextArea(4, 30); self.token_area.setEditable(False)
+        token_panel.add(JScrollPane(self.token_area))
 
-        # Top: button to queue selected history items into UI
-        btn_panel = JPanel()
-        send_btn = JButton("Send Selected to UI", actionPerformed=lambda e: self.send_selection())
-        btn_panel.add(send_btn)
+        result = JPanel(); result.setLayout(BoxLayout(result, BoxLayout.X_AXIS))
+        result.add(post_panel); result.add(token_panel)
 
-        # Overall layout
-        self.add(btn_panel, BorderLayout.NORTH)
-        self.add(main_split, BorderLayout.CENTER)
+        content = JSplitPane(JSplitPane.HORIZONTAL_SPLIT, left, JPanel(BorderLayout()))
+        content.setResizeWeight(0.3)
+        right = JPanel(BorderLayout())
+        right.add(viewer, BorderLayout.CENTER); right.add(result, BorderLayout.SOUTH)
+        content.setRightComponent(right)
 
-    def send_selection(self):
-        """
-        Stub: context menu or extender should call add_request() directly
-        """
-        pass
+        panel.add(content, BorderLayout.CENTER)
+        return panel
 
-    def add_request(self, messageInfo):
-        """
-        Add a new HTTP request/response to the list and internal store.
-        """
-        idx = len(self.messages)
-        self.messages.append(messageInfo)
-
-        service = messageInfo.getHttpService()
-        req_info = self.helpers.analyzeRequest(messageInfo)
-        url = req_info.getUrl()
-        display_text = "%d: %s %s" % (idx, service.getHost(), url)
-        self.list_model.addElement(display_text)
+    def build_yaml_panel(self):
+        panel = JPanel(BorderLayout())
+        self.yaml_text = JTextArea()
+        panel.add(JScrollPane(self.yaml_text), BorderLayout.CENTER)
+        btn_panel = JPanel(FlowLayout(FlowLayout.RIGHT))
+        gen_btn = JButton("Generate YAML", actionPerformed=lambda e: self.on_generate_yaml())
+        save_btn = JButton("Save YAML", actionPerformed=lambda e: self.on_save_yaml())
+        btn_panel.add(gen_btn); btn_panel.add(save_btn)
+        panel.add(btn_panel, BorderLayout.SOUTH)
+        return panel
 
     def on_select_request(self):
-        """
-        Display the raw request and response for the selected message.
-        """
         sel = self.request_list.getSelectedIndex()
-        if sel < 0 or sel >= len(self.messages):
-            return
-        messageInfo = self.messages[sel]
-        req = messageInfo.getRequest()
-        resp = messageInfo.getResponse()
+        if sel<0 or sel>=len(self.messages): return
+        msg = self.messages[sel]
+        self.request_view.setText(self.helpers.bytesToString(msg.getRequest()))
+        self.response_view.setText(self.helpers.bytesToString(msg.getResponse()) if msg.getResponse() else "")
 
-        self.request_view.setText(self.helpers.bytesToString(req))
-        self.response_view.setText(
-            self.helpers.bytesToString(resp) if resp else ""
-        )
+    def on_extract_selection(self):
+        sel = self.request_list.getSelectedIndex()
+        if sel<0: return
+        if self.radio_creds.isSelected():
+            s = self.request_view.getSelectedText()
+            if s: self.creds_list.append(s)
+            self.post_area.setText(", ".join(self.creds_list))
+        if self.radio_cookies.isSelected():
+            s = self.response_view.getSelectedText()
+            if s: self.cookies_list.append(s)
+            self.token_area.setText(", ".join(self.cookies_list))
+
+    def clear_requests(self):
+        self.messages.clear(); self.list_model.clear()
+        self.request_view.setText(""); self.response_view.setText("")
+        self.creds_list=[]; self.cookies_list=[]
+        self.post_area.setText(""); self.token_area.setText("")
+
+    def on_generate_yaml(self):
+        urls = [self.helpers.analyzeRequest(msg).getUrl() for msg in self.messages]
+        yaml = logic.build_phishlet_yaml(urls, self.creds_list, self.cookies_list)
+        self.yaml_text.setText(yaml)
+
+    def on_save_yaml(self):
+        chooser = JFileChooser(); chooser.setDialogTitle("Save Phishlet YAML")
+        if chooser.showSaveDialog(self)==JFileChooser.APPROVE_OPTION:
+            path = chooser.getSelectedFile().getAbsolutePath()
+            text = self.yaml_text.getText()
+            f = open(path, 'w'); f.write(text); f.close()

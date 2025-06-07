@@ -1,30 +1,34 @@
-from burp import IBurpExtender, ITab
-from javax.swing import SwingUtilities
+from burp import IBurpExtender, ITab, IContextMenuFactory
+from javax.swing import SwingUtilities, JMenuItem
+from java.util import ArrayList
 from ui import MainPanel
+import logic
 
-class BurpExtender(IBurpExtender, ITab):
-    """
-    Main Burp extension class that embeds the custom UI.
-    """
+class BurpExtender(IBurpExtender, ITab, IContextMenuFactory):
     def registerExtenderCallbacks(self, callbacks):
-        # Save callbacks and helpers
         self.callbacks = callbacks
         self.helpers = callbacks.getHelpers()
-
-        # Set extension name shown in Burp
         callbacks.setExtensionName("Phishlet Generator")
-
-        # Initialize UI on the Swing EDT
         SwingUtilities.invokeLater(lambda: self._initialize_ui())
+        callbacks.registerContextMenuFactory(self)
 
     def _initialize_ui(self):
-        # Create the main UI panel and add it as a new tab
         self.main_panel = MainPanel(self.callbacks)
         self.callbacks.addSuiteTab(self)
 
-    # ITab methods
     def getTabCaption(self):
         return "Phishlet Gen"
 
     def getUiComponent(self):
         return self.main_panel
+
+    def createMenuItems(self, invocation):
+        menu = ArrayList()
+        item = JMenuItem("Send to Phishlet Gen",
+                         actionPerformed=lambda e: self._send_to_ui(invocation))
+        menu.add(item)
+        return menu
+
+    def _send_to_ui(self, invocation):
+        for msg in invocation.getSelectedMessages():
+            self.main_panel.add_request(msg)
